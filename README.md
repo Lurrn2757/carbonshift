@@ -1,167 +1,374 @@
-# CarbonShift v0.4 — schedule a useful image batch
+ <div align="center">
 
-Local energy-aware scheduling with an image-processing workload, a persistent
-single-worker queue, downloadable results and optional Electricity Maps observations.
-Existing checksum execution, forecast exploration, Open-Meteo CLI and carbon journal
-are preserved. Planning forecasts in the dashboard remain explicitly simulated.
+# 🌱 CarbonShift
 
-## Start
+### Run compute when energy is greener.
 
-Stop the old API and worker with Ctrl+C. Do not run two versions against the same queue.
+**A carbon-aware workload scheduler that turns energy-aware decisions into real Docker execution.**
+
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge\&logo=python\&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge\&logo=fastapi\&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Execution-2496ED?style=for-the-badge\&logo=docker\&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-Persistent_Queue-003B57?style=for-the-badge\&logo=sqlite\&logoColor=white)
+
+**NextStep Hacks 2026 | Earth Forward**
+
+[Overview](#overview) • [Features](#key-features) • [Architecture](#system-architecture) • [Getting Started](#getting-started) • [Future](#future-roadmap)
+
+</div>
+
+---
+
+# Overview
+
+Computing consumes electricity, but not every computing task needs to execute immediately.
+
+AI training, media processing, database backups, and batch analytics often have flexible execution windows.
+
+Meanwhile, renewable energy availability and electricity grid carbon intensity change throughout the day.
+
+**What if computing workloads could adapt to cleaner energy availability?**
+
+CarbonShift explores this idea by evaluating possible execution windows, selecting a suitable time, and executing the workload using a real Docker worker.
+
+The system combines an optimization engine, a persistent job queue, containerized execution, and an interactive dashboard.
+
+---
+
+# Dashboard Preview
+
+![CarbonShift Dashboard](screenshots/dashboard-desktop.png)
+
+*The actual CarbonShift v0.4 dashboard. Environmental scheduling data shown in the interface is simulated.*
+
+---
+
+# The Problem
+
+Traditional computing systems commonly execute jobs as soon as resources become available, without necessarily considering the environmental characteristics of the electricity being consumed.
+
+However, many batch computing tasks have flexible deadlines.
+
+A workload that must finish by 6 PM might not need to execute at 9 AM.
+
+If cleaner electricity is expected to be available later, delaying the workload could reduce its estimated dependence on grid electricity or associated emissions.
+
+The challenge is to identify an appropriate execution window without violating the job's deadline.
+
+---
+
+# Our Solution
+
+CarbonShift introduces deadline-aware, environmentally informed scheduling.
+
+Instead of simply displaying environmental statistics, it connects the scheduling decision to actual workload execution.
+
+The process is straightforward:
+
+**Submit → Optimize → Schedule → Execute → Verify**
+
+A user submits a computing task with its estimated power requirement, execution duration, and deadline.
+
+The optimizer evaluates candidate execution windows against environmental scenarios.
+
+Once a window is selected, the job is stored in SQLite.
+
+A Docker worker executes it at the scheduled time and records the outcome.
+
+---
+
+# Key Features
+
+### 🌱 1. Carbon-Aware Scheduling
+
+Evaluate multiple execution windows using:
+
+* Estimated workload power
+* Execution duration
+* Earliest permissible start
+* Completion deadline
+* Solar energy availability
+* Existing site electricity demand
+* Grid carbon intensity
+
+The engine supports solar, carbon, and hybrid optimization objectives.
+
+### 📊 2. Interactive Energy Dashboard
+
+Visualize environmental conditions and compare the earliest possible execution time against the recommended window.
+
+The interface displays estimated grid electricity, solar contribution, and associated emissions.
+
+Users can explore how scheduling decisions change under different environmental scenarios.
+
+### ⚙️ 3. Persistent Job Queue
+
+Submitted jobs are stored in SQLite along with their configurations and scheduling decisions.
+
+The worker supervises queued workloads and executes eligible jobs at their selected times.
+
+### 🐳 4. Real Docker Execution
+
+CarbonShift does not stop at recommending an execution time.
+
+A real Docker worker launches supported workloads and records container execution details.
+
+The application tracks execution states, timestamps, exit codes, runtime, and logs.
+
+### 🖼️ 5. Image Processing
+
+Upload JPEG or PNG images and configure the output quality and resolution.
+
+The system schedules and executes the processing job inside Docker.
+
+Completed results are packaged into a downloadable ZIP containing converted JPEG images and an execution report.
+
+### 📋 6. Execution Evidence
+
+Completed jobs preserve execution records, including:
+
+* Container identifiers
+* Scheduled and actual execution timestamps
+* Exit codes
+* Processing information
+* Output artifacts
+* Runtime-based energy estimates
+
+This makes it possible to distinguish the scheduling prediction from the observed execution result.
+
+---
+
+# Proof of Execution
+
+CarbonShift was tested on a local Linux machine with real Docker execution.
+
+A verified image-processing workload successfully completed and generated a downloadable JPG.
+
+| Verification      | Result                |
+| ----------------- | --------------------- |
+| Job status        | `SUCCEEDED`           |
+| Docker exit code  | `0`                   |
+| Output            | JPG image             |
+| Download          | ZIP archive           |
+| Execution records | Persisted             |
+| Worker            | Real Docker container |
+
+The project also includes a checksum workload for demonstrating timed container execution.
+
+**The key achievement is that the application makes a scheduling decision and can act on it.**
+
+---
+
+# System Architecture
+
+```mermaid
+flowchart TD
+    A[User Dashboard] --> B[FastAPI Backend]
+    B --> C[Scheduling Optimizer]
+    C --> D[SQLite Job Queue]
+    D --> E[Docker Worker]
+    E --> F[Containerized Workload]
+    F --> G[Execution Results]
+    G --> B
+    B --> A
+```
+
+## Technology Stack
+
+| Technology            | Purpose                          |
+| --------------------- | -------------------------------- |
+| Python                | Optimization and backend logic   |
+| FastAPI               | HTTP API                         |
+| SQLite                | Persistent scheduling queue      |
+| Docker                | Containerized workload execution |
+| Pillow                | Image processing                 |
+| HTML, CSS, JavaScript | Interactive dashboard            |
+
+The current implementation uses a single local Docker worker.
+
+---
+
+# How the Optimization Works
+
+CarbonShift estimates the energy required by a computing task:
+
+$$
+E = \frac{P \times t}{1000}
+$$
+
+Where:
+
+* E is energy in kilowatt-hours.
+* P is estimated power in watts.
+* t is execution duration in hours.
+
+For each candidate execution window, CarbonShift estimates the workload's grid electricity requirement and associated emissions according to the selected optimization objective.
+
+The scheduler selects a feasible window that minimizes the chosen estimate while respecting the completion deadline.
+
+For example, a computing job might be shifted from morning to midday when the simulated model predicts greater solar availability.
+
+The workload's estimated total energy does not necessarily decrease. The intended benefit comes from changing when and potentially how that energy is supplied.
+
+---
+
+# Getting Started
+
+## Prerequisites
+
+* Linux
+* Python 3.10+
+* Docker with a working local daemon
+* Internet connection for initial installation
+
+## Installation
+
+Clone the repository:
 
 ```bash
-unzip "$HOME/Downloads/CarbonShift_v0.4.zip" -d "$HOME/Projects"
-cd "$HOME/Projects/carbonshift-v0.4"
+git clone https://github.com/Lurrn2757/carbonshift.git
+cd carbonshift
+```
+
+Start the application:
+
+```bash
 bash start.sh
 ```
 
-Open http://127.0.0.1:8088. The launcher creates a virtual environment, installs
-requirements, builds the new `carbonshift-workload:0.4` image when missing, and starts
-the local API and worker. Keep the terminal running. First setup requires internet;
-forecast exploration and image execution then need no external data API.
+Open the dashboard:
 
-Requirements: Linux, Python 3.10+, local Docker daemon for execution, and free disk
-space. Docker Desktop/remote Docker contexts are not supported by this release's
-host bind mounts. The planner remains usable when Docker is unavailable.
-If necessary, inspect `docker info` or rebuild explicitly:
+**http://127.0.0.1:8088**
 
-```bash
-docker build -t carbonshift-workload:0.4 ./workloads
-```
+The launcher prepares the Python environment, checks Docker availability, and starts the application.
 
-## First useful run
+Keep the terminal running while scheduled jobs execute.
 
-1. In Schedule planner, select **Resize & compress images**.
-2. Choose up to 20 JPEG/PNG files. For a quick check, start with ten small photos.
-3. Leave longest edge at 1600 pixels and JPEG quality at 80, or change them.
-4. Click **Set a quick test**: earliest start in two minutes, deadline in ten.
-5. Set **Start choice → Earliest permitted start** and **Duration → 2 minutes**.
-6. Click **Find best window**. Inspect the energy comparison and selected batch time.
-7. Click **Queue this exact batch** once Docker is ready.
-8. Open the record in **Job activity**. It shows waiting/starting/processing state,
-   processed/total count when observed, logs and actual container runtime.
-9. After `SUCCEEDED`, click **Download processed images**. The ZIP includes numbered
-   JPEGs and `report.json`, which maps originals to outputs, sizes and dimensions.
+## Run Your First Workload
 
-Images may finish before the next two-second dashboard poll, so a small batch may
-jump directly to completion. Progress is persisted from bounded container logs.
+1. Open the Schedule Planner.
+2. Select Resize & compress images.
+3. Upload a JPEG or PNG image.
+4. Configure the processing settings.
+5. Select the execution window.
+6. Click Find best window.
+7. Review the recommendation and queue the batch.
+8. Follow execution in Job Activity.
+9. Download the processed images after completion.
 
-Select **Recommended energy window** for subsequent runs to use the optimizer's
-selected time. Choose a longer deadline if you want to explore delaying into an
-invented daytime solar window. No solar or an already-optimal start can legitimately
-produce zero reduction. Custom windows are limited to 48 hours. All displayed
-schedule timestamps are IST; datetime input controls use the browser's local timezone.
+---
 
-The image reservation is 1–60 minutes and is a hard execution budget, not a measured
-processing estimate. Energy predictions cover that entire reservation; the results
-record separately estimates total energy from configured watts × actual container
-runtime. Neither number is a power measurement or proof of avoided emissions.
+# Testing and Verification
 
-## Files and execution
+The final development audit reported:
 
-- 1–20 single-frame JPEG/PNG images, up to 5 MiB and 8 megapixels each, 20 MiB total.
-- Output JPEG longest edge 64–4096 px, quality 40–95, aspect ratio preserved, no upscaling.
-- Transparency is flattened on white; EXIF metadata is stripped. Output bytes can
-  increase for some inputs. Originals are not overwritten.
-- Input bytes and manifest are hashed. Missing/changed inputs fail validation before
-  queue submission and container creation. Preview contents are saved server-side;
-  queue submission identifies that saved preview and reuses its idempotency key.
-- One compute slot; conflicting reservations are rejected rather than silently moved.
-- Image container: one CPU, 512 MiB RAM, no network, unprivileged UID, dropped
-  capabilities, read-only root, read-only input mount, only its dedicated output
-  directory writable. The checksum workload retains its 128 MiB limit.
-- The fixed workload bounds output to 64 MiB and writes a ZIP atomically. The worker
-  validates the archive, settings and input identity before reporting success.
-  Exit code 0 without valid results becomes FAILED. Downloads verify the completed
-  archive hash; partial/failed results are not offered as successful downloads.
-- Data stays outside version folders: jobs at `~/.local/share/carbonshift/jobs.sqlite3`,
-  assets at `~/.local/share/carbonshift/assets`, carbon journal at
-  `~/.local/share/carbonshift/carbon_observations.jsonl`.
-- `CARBONSHIFT_DB`, `CARBONSHIFT_ASSETS` and `CARBONSHIFT_OBSERVATIONS` override those
-  paths. API and worker must use the same local paths. Asset paths must not contain
-  commas. Keep the asset root private and on the execution host.
-- Uploads, previews, result ZIPs and stopped containers are retained; automatic
-  retention cleanup is not implemented. Monitor disk use. Do not delete referenced
-  files while jobs are queued or running. No arbitrary user scripts are accepted.
+**108 automated tests passed.**
 
-Existing job history and checksum idempotency hashes remain compatible. A previously
-created Docker container keeps its existing image. The new runner uses image 0.4 for
-new containers. Stop the old version before upgrading; source folders are separate.
+The automated test suite covers application logic and integration paths.
 
-## API keys — configure once
+Real Docker execution was also tested separately on the local machine.
 
-Only Electricity Maps needs a key in this application. Obtain yours through the
-[official API account page](https://app.electricitymaps.com/docs/quickstart/authorization).
-Current public docs advertise a 14-day trial; verify your account's actual IN-WE and
-signal access. An account key does not guarantee access to every forecast endpoint.
-
-From the new project folder:
+Run the tests:
 
 ```bash
-bash configure-api.sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
-Paste your key into the hidden prompt and press Enter. It is saved with mode 0600 to
-`~/.config/carbonshift/electricitymaps.key`, outside the project. This is a private
-local plaintext file, not an encrypted vault. Never send the key in chat, commit it
-or include it in a screenshot. Configuration itself makes no external API request.
+See `VERIFICATION.md` for further testing information.
 
-Restart the app with `bash start.sh`. Open **Grid observations**, leave the zone as
-`IN-WE`, and click **Fetch & save reading**. The server sends the key as the documented
-`auth-token` header. It never sends the key to dashboard JavaScript, jobs, observation
-records or Docker workloads. A configured-key label confirms local configuration,
-not provider authorization; the first successful fetch proves your request is allowed.
+---
 
-The environment variable `ELECTRICITYMAPS_API_KEY` overrides the saved file, even
-when explicitly empty. If you previously exported another value, run
-`unset ELECTRICITYMAPS_API_KEY` before launching to use the saved key.
-Rotate by running the configuration script again, then restart. Remove the saved key
-file and unset the environment variable to disable access. Saved observations remain.
+# Environmental Data and Transparency
 
-CLI after first setup:
+CarbonShift currently uses simulated solar and grid carbon scenarios in its dashboard scheduling workflow.
 
-```bash
-source .venv/bin/activate
-python -m carbonshift carbon-now --zone IN-WE
-python -m carbonshift carbon-log --limit 20
-```
+These scenarios demonstrate how the optimization algorithm behaves under different conditions.
 
-401 means key rejected; 403 means check account entitlement; 429 means rate-limited.
-Provider errors do not generate fake readings. Latest observations can be estimated
-or stale and are never reused as scheduling forecasts. Carbon records use a separate
-JSONL journal; repeated retrievals may contain the same provider timestamp.
+The project also includes:
 
-## Weather API
+**Open-Meteo:** A separate CLI integration for real weather forecasts and estimated solar generation.
 
-The retained Open-Meteo integration uses its public endpoint and requires no API key
-in this implementation. It is currently a CLI preview, separate from the dashboard's
-simulated planner. Respect provider usage terms for your deployment. Example:
+**Electricity Maps:** An optional integration for retrieving grid carbon observations when an authorized API key is available.
 
-```bash
-source .venv/bin/activate
-python -m carbonshift live --latitude 19.076 --longitude 72.8777 \
-  --pv-capacity-kwp 0.5 --site-base-load-kw 0.08 \
-  --estimated-power-w 180 --duration-minutes 90 --deadline-hours 24
-```
+These provider integrations are not currently connected to the dashboard's scheduling forecasts.
 
-This estimates solar power from weather; it is not measured PV output or a grid-carbon
-forecast. Electricity Maps latest-reading access does not enable live forecast scheduling.
+Actual workload execution is real.
 
-## Development and verification
+Energy consumption and environmental benefits are estimated rather than directly measured.
 
-```bash
-source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
-python -m unittest discover -s tests -v
-```
+CarbonShift does not claim verified real-world carbon savings.
 
-See VERIFICATION.md for actual test results and remaining Docker/API checks.
-`tests/browser_smoke.mjs` is optional Playwright tooling; Node is not needed to run
-the application. It uses temporary data and explicit fixtures. The older CLI/queue
-reference is BACKEND_REFERENCE.md; V031_REFERENCE.md preserves the previous release
-documentation. Use this README for current startup and configuration instructions.
+---
 
-New routes: POST /api/batches, POST /api/batches/preview,
-POST /api/batches/queue/{preview_id}, GET /api/jobs/{job_id}/results.
-The existing optimize, forecast, queue, cancel and carbon-observation routes remain.
-API docs: http://127.0.0.1:8088/docs. Local only; no multi-user authentication or public hosting.
+# Industrial Applications
+
+The underlying approach could eventually be applied to several industries.
+
+**Data Centres:** Schedule non-urgent computing jobs around periods of cleaner electricity.
+
+**AI Infrastructure:** Shift flexible model training and evaluation workloads while respecting deadlines.
+
+**Media Processing:** Schedule image conversion, video rendering, and transcoding batches.
+
+**Enterprise IT:** Optimize the timing of backups, reporting, and batch analytics.
+
+These are potential industrial applications, not existing production deployments.
+
+---
+
+# Current Limitations
+
+CarbonShift is a working local prototype, not a production-ready distributed orchestration platform.
+
+Current limitations include:
+
+* Simulated environmental inputs in dashboard scheduling.
+* One local Docker worker.
+* User-configured workload power estimates.
+* No direct hardware energy measurement.
+* No verified measurements of avoided emissions.
+* No public multi-user execution service.
+
+These limitations define the next engineering challenges.
+
+---
+
+# Future Roadmap
+
+### Phase 1: Live environmental forecasting
+
+Connect real weather and grid carbon forecasts directly to the optimizer.
+
+### Phase 2: Automatic workload profiling
+
+Estimate workload power requirements from hardware telemetry and historical executions.
+
+### Phase 3: Distributed execution
+
+Support multiple servers and evaluate both execution time and location.
+
+### Phase 4: Production infrastructure
+
+Introduce authentication, resource management, monitoring, and more advanced scheduling policies.
+
+The long-term vision is to make environmental impact a practical scheduling consideration alongside performance, cost, and reliability.
+
+---
+
+# Built for NextStep Hacks 2026
+
+**Theme: Earth Forward 🌍**
+
+CarbonShift demonstrates how flexible computing workloads can adapt to renewable energy availability rather than always executing immediately.
+
+---
+
+<div align="center">
+
+### Same Compute. Smarter Timing.
+
+**CarbonShift | Run compute when energy is greener. 🌱**
+
+</div>
