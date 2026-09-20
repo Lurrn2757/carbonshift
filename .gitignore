@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+*.sqlite3
+.pytest_cache/
+
+*.sqlite3-wal
+*.sqlite3-shm
+*.worker.lock
+
+# Local credentials and runtime data
+.env.*
+*.key
+*.pem
+*.db
+*.db-*
+*.jsonl
+*.log
+/assets/
+/uploads/
+/outputs/

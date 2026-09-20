@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CarbonShift · Work with the sun</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/static/style.css"><script src="/static/app.js" defer></script></head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="#"><span class="brand-icon">↗</span> CarbonShift<span class="version">0.4.0</span></a>
+  <div class="workspace-label">LOCAL WORKSPACE</div>
+  <nav aria-label="Main navigation"><a class="nav-item active" href="#planner"><span>◈</span> Schedule planner</a><a class="nav-item" href="#execution"><span>▷</span> Run a workload</a><a class="nav-item" href="#activity"><span>≡</span> Job activity <b id="job-count">0</b></a><a class="nav-item" href="#grid-observations"><span>◎</span> Grid observations</a></nav>
+  <div class="sidebar-bottom"><div class="tiny-label">YOUR EXECUTION HOST</div><strong>Local Docker</strong><p>One worker · One compute slot</p><a href="/docs" target="_blank" rel="noopener">API reference ↗</a><div class="source-note">Forecasts are simulated.<br>Queued workloads run in real containers.</div></div>
+</aside>
+<main>
+  <header><div><span class="breadcrumb">Workspace / </span>Overview</div><div class="header-right"><span class="connection" id="connection">Connecting…</span><span id="clock"></span></div></header>
+  <section class="intro"><div><div class="eyebrow">COMPUTE, AT A BETTER TIME</div><h1>Make timing matter.</h1><p>Find a better energy window. Run a workload. See the evidence.</p></div><a class="button secondary" href="#execution">Run a workload <span>↗</span></a></section>
+  <div id="service-banner" class="notice" role="status">Checking the local worker…</div>
+  <section id="planner" class="section">
+    <div class="section-title"><div><span class="section-number">01</span><h2>Schedule planner</h2></div><span class="pill">SIMULATED FORECAST</span></div>
+    <div class="planner-layout">
+      <form id="plan-form" class="panel config">
+        <div class="panel-heading"><h3>Your workload</h3><span>Plan → Run → Download</span></div>
+        <label>Workload<select id="workload-choice"><option value="preview">Explore a forecast</option><option value="images">Resize &amp; compress images</option></select></label>
+        <div id="image-inputs" hidden>
+          <label>Images<input id="image-files" type="file" accept="image/jpeg,image/png" multiple></label>
+          <p class="help">1–20 JPEG/PNG files. Maximum 5 MiB and 8 megapixels each; 20 MiB total. Originals stay unchanged.</p>
+          <div class="form-row"><label>Longest edge · px<input id="image-edge" type="number" min="64" max="4096" value="1600"></label><label>JPEG quality<input id="image-quality" type="number" min="40" max="95" value="80"></label></div>
+          <p class="help">Keeps proportions; no upscaling. Transparent pixels become white. EXIF metadata is removed.</p>
+          <label>Earliest start · your browser's timezone<input id="image-start" type="datetime-local" step="1"></label>
+          <label>Finish by · your browser's timezone<input id="image-deadline" type="datetime-local" step="1"></label>
+          <button id="image-soon" type="button" class="text-button">Set a quick test: start in 2 min, deadline in 10 min</button>
+          <label>Start choice<select id="image-timing"><option value="recommended">Recommended energy window</option><option value="earliest">Earliest permitted start</option></select></label>
+          <p class="help">Duration below is the reserved slot and hard timeout (1–60 min for images). Processing may finish sooner; estimates cover the entire reservation.</p>
+        </div>
+        <label>Job name<input name="name" value="afternoon-batch" required maxlength="100"></label>
+        <div class="form-row"><label>Duration <span>min</span><input name="duration_minutes" type="number" value="90" min="1" max="540" step="1" required></label><label>Estimated power <span>W</span><input name="estimated_power_w" type="number" value="180" min="0.1" max="100000" step="any" required></label></div>
+        <div class="form-divider"></div>
+        <label>Forecast scenario<select name="scenario"><option value="sunny">Sunny afternoon</option><option value="cloudy">Cloudy day</option><option value="no-solar">No solar available</option></select></label>
+        <div class="form-row"><label>PV capacity <span>kWp</span><input name="pv_capacity_kwp" type="number" value="0.5" min="0" max="100000" step="any" required></label><label>Base load <span>kW</span><input name="base_load_kw" type="number" value="0.08" min="0" max="100000" step="any" required></label></div>
+        <label>Optimize for<select name="objective"><option value="solar">Lowest grid energy · solar</option><option value="carbon">Lowest emissions · grid only</option><option value="hybrid">Lowest emissions · solar + grid</option></select></label>
+        <p class="help" id="window-help">Planning window: tomorrow, 09:00–18:00 Mumbai time. Power and solar values are estimates.</p>
+        <button class="button primary full" type="submit" id="optimize-button">Find best window <span>→</span></button>
+      </form>
+      <div class="plan-output" id="plan-output">
+        <div class="metrics"><div class="metric"><span id="reduction-label">Estimated grid reduction</span><strong id="reduction">—</strong><small id="reduction-sub">Calculate a schedule to compare</small></div><div class="metric"><span>Recommended solar share</span><strong id="solar-share">—</strong><small>Of the modeled job energy</small></div><div class="metric"><span>Job energy</span><strong id="total-energy">—</strong><small>Unchanged by moving the job</small></div></div>
+        <div class="panel forecast-panel"><div class="panel-heading"><div><h3>Energy opportunity</h3><p id="forecast-date">Loading scenario…</p></div><div class="legend"><span class="legend-solar">Solar</span><span class="legend-base">Base load</span><span class="legend-carbon" id="carbon-legend" hidden>Carbon</span></div></div><div id="forecast-chart" class="chart" aria-label="Forecast and scheduling windows"></div><div class="chart-key"><span><i class="baseline-key"></i> Earliest start</span><span><i class="recommended-key"></i> Recommended window</span></div></div>
+        <div class="comparison"><div class="window-card"><span class="tiny-label">EARLIEST START</span><h3 id="baseline-time">—</h3><p id="baseline-energy">—</p><p id="baseline-carbon" class="muted"></p></div><div class="window-card chosen"><span class="tiny-label">RECOMMENDED</span><h3 id="recommended-time">—</h3><p id="recommended-energy">—</p><p id="recommended-carbon" class="muted"></p></div></div>
+        <div class="explanation"><span class="spark">✦</span><p id="explanation">The scheduler compares complete job windows while respecting the deadline.</p><button type="button" id="export-plan" class="text-button" disabled>Export JSON ↓</button></div>
+        <p class="provenance" id="provenance">Modeled estimates, not measured energy or carbon savings.</p>
+        <div id="image-review" class="panel image-review" hidden>
+          <h3>Image batch · review and queue</h3><div id="image-review-content"></div>
+          <button id="queue-images" type="button" class="button primary" disabled>Queue this exact batch</button>
+          <p id="image-status" role="status" class="inline-message"></p>
+          <p class="help">One CPU · 512 MB · No network. Keep CarbonShift running until completion. Results appear in Job activity.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="execution" class="section">
+    <div class="section-title"><div><span class="section-number">02</span><h2>Run a real workload</h2></div><span class="pill neutral">DOCKER EXECUTION</span></div>
+    <div class="panel execution-layout"><div><h3>Preview it. Queue it. Watch it run.</h3><p>Run a CPU checksum batch immediately after your start delay, or let the scheduler wait for a simulated solar window. Preview first; queuing preserves that exact plan.</p><p class="help">The short solar scenario deliberately changes after one minute so you can test a scheduling decision now. Solar and power are estimates. Container execution is real.</p><div id="execution-preview" class="execution-preview"><p>Choose a scenario and preview an executable plan.</p></div><div class="worker-status"><span class="status-dot" id="worker-dot"></span><span id="worker-label">Checking worker…</span></div><p class="help" id="worker-detail"></p></div>
+      <form id="run-form"><label>Workload name<input name="name" value="checksum-batch" required maxlength="100"></label><label>Execution scenario<select name="mode"><option value="immediate">Earliest start · execution check</option><option value="solar-shift">Wait for solar · simulated one-minute shift</option></select></label><div class="form-row"><label>Run for <span>seconds</span><input name="run_seconds" type="number" value="5" min="1" max="3600" required></label><label>Earliest start after <span>seconds</span><input name="delay_seconds" type="number" value="15" min="5" max="86400" required></label></div><label>Estimated workload power <span>W</span><input name="estimated_power_w" type="number" value="30" min="0.1" max="100000" step="any" required></label><button class="button secondary full" type="button" id="preview-run">Preview execution plan</button><button class="button primary full" type="submit" id="run-button" disabled>Queue this plan <span>→</span></button><p class="help">Restricted container · No network · 1 CPU / 128 MB<br>Keep this app running to execute scheduled jobs.</p><p class="inline-message" id="run-message" role="status"></p></form></div>
+  </section>
+  <section id="activity" class="section">
+    <div class="section-title"><div><span class="section-number">03</span><h2>Job activity</h2></div><div class="activity-actions"><span id="refresh-label">Updates every 2 seconds</span><button class="text-button" id="refresh" type="button">Refresh ↻</button></div></div>
+    <div class="panel jobs-panel"><div id="job-summary" class="job-summary">No jobs yet</div><div class="table-scroll"><table><thead><tr><th>Workload</th><th>Status</th><th>Scheduled start</th><th>Runtime</th><th>Exit code</th><th></th></tr></thead><tbody id="jobs-body"></tbody></table></div><div id="empty-state" class="empty-state"><span>↗</span><h3>Your queue is ready for its first job.</h3><p>Use “Run a real workload” to verify the complete execution path.</p></div></div>
+  </section>
+  <section id="grid-observations" class="section">
+    <div class="section-title"><div><span class="section-number">04</span><h2>Grid observations</h2></div><span class="pill neutral">LATEST DATA · NOT A FORECAST</span></div>
+    <div class="panel carbon-panel"><div class="carbon-controls"><div><h3>Electricity Maps</h3><p>Fetch a latest grid reading and keep a local record. Observations do not change job schedules.</p><p class="help" id="carbon-key-status">Checking configuration…</p></div><form id="carbon-form"><label>Grid zone<input id="carbon-zone" value="IN-WE" pattern="[A-Z0-9][A-Z0-9_-]{0,63}" maxlength="64" required></label><button class="button secondary" id="carbon-fetch" type="submit" disabled>Fetch &amp; save reading</button></form></div><p class="inline-message" id="carbon-message" role="status"></p><div id="carbon-latest" class="carbon-latest"><p>No saved reading loaded.</p></div><div class="panel-heading"><h3>Saved observations</h3><button id="carbon-export" class="text-button" type="button" disabled>Export displayed records ↓</button></div><div class="table-scroll"><table><thead><tr><th>Zone / provider time</th><th>gCO₂e/kWh</th><th>Provider estimate</th><th>Age status</th><th>Retrieved</th></tr></thead><tbody id="carbon-history"></tbody></table></div><p class="help">Manual fetch only. Repeated pulls may return the same provider timestamp; they are retrieval records, not independent samples. “Stale” means older than 3 hours under CarbonShift’s display policy. Data: <a href="https://www.electricitymaps.com" target="_blank" rel="noopener">Electricity Maps ↗</a></p></div>
+  </section>
+  <footer><span>CarbonShift · Local development workspace</span><span>Forecasts ≠ measurements. Evidence stays separate.</span></footer>
+</main>
+<dialog id="job-dialog"><div class="dialog-heading"><div><div class="eyebrow">EXECUTION RECORD</div><h2 id="detail-name">Job details</h2></div><button type="button" id="close-dialog" class="close-button" aria-label="Close details">×</button></div><div id="detail-content"></div><div class="dialog-actions"><button class="button secondary" id="cancel-job" type="button" hidden>Cancel pending job</button><button class="button secondary" id="export-job" type="button">Export record ↓</button></div></dialog>
+<div id="toast" class="toast" role="alert" hidden></div>
+</body></html>
